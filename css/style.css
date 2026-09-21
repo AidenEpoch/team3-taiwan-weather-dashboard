@@ -114,7 +114,7 @@ button { color: inherit; }
 .uv-card { position: relative; overflow: hidden; min-height: 235px; padding: 25px; border-radius: var(--radius); }
 .uv-card::after { content: ""; position: absolute; width: 150px; height: 150px; right: -60px; bottom: -70px; border-radius: 50%; background: var(--level-color); filter: blur(28px); opacity: .17; }
 .uv-location { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
-.uv-location strong { font-size: 18px; }.uv-location span { color: var(--muted); font-size: 11px; }
+.uv-location strong { font-size: 18px; }.uv-location span { margin-left: 12px; color: var(--muted); font-size: 11px; }
 .uv-badge { padding: 5px 9px; color: var(--level-color); border: 1px solid color-mix(in srgb, var(--level-color) 35%, transparent); border-radius: 99px; background: color-mix(in srgb, var(--level-color) 9%, transparent); font-size: 10px; font-weight: 800; }
 .uv-reading { display: flex; align-items: end; justify-content: space-between; margin-top: 38px; }
 .uv-reading strong { font-size: 64px; line-height: .8; letter-spacing: -.06em; }
