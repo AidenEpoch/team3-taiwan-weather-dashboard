@@ -9,8 +9,34 @@
 
 ## 專案連結
 
-- 正式網站：[https://team3-taiwan-weather-dashboard.vercel.app](https://team3-taiwan-weather-dashboard.vercel.app)
 - GitHub Repository：[https://github.com/jessicaKY/team3-taiwan-weather-dashboard](https://github.com/jessicaKY/team3-taiwan-weather-dashboard)
+
+## 成果展示
+
+- 正式網站：[https://team3-taiwan-weather-dashboard.vercel.app](https://team3-taiwan-weather-dashboard.vercel.app)
+
+## 組員分工
+
+### 林冠儀（組長）
+
+- 收集氣象網頁版面參考資料
+- 網站架構與功能規劃
+- 雨量觀測前端畫面與 RWD
+- 簡報製作
+
+### 陳柏宏
+
+- 收集氣象網頁參考資料
+- 網站架構與功能規劃
+- 所有縣市最新 36 小時氣象預測畫面
+- 報告
+
+### 黃劭傑
+
+- 收集氣象網頁參考資料
+- 網站架構與功能規劃
+- 紫外線觀測前端畫面
+- 報告
 
 ## 資料來源
 
