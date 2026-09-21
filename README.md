@@ -10,7 +10,6 @@
 ## 專案連結
 
 - GitHub Repository：[https://github.com/jessicaKY/team3-taiwan-weather-dashboard](https://github.com/jessicaKY/team3-taiwan-weather-dashboard)
-- 完整建置與協作教學：[team3-taiwan-weather-dashboard_SOP.md](team3-taiwan-weather-dashboard_SOP.md)
 
 ## 成果展示
 
