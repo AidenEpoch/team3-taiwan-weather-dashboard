@@ -172,9 +172,15 @@ function weatherIcon(weather = "") {
   return "☀️";
 }
 
+function normalizeSearchText(text = "") {
+  return String(text).trim().toLowerCase().replaceAll("台", "臺");
+}
+
 function renderForecast(items = state.forecast) {
-  const keyword = $("#city-search").value.trim();
-  const data = (items.length ? items : fallbackData.forecast).filter((item) => item.city.includes(keyword));
+  const keyword = normalizeSearchText($("#city-search").value);
+  const data = (items.length ? items : fallbackData.forecast).filter((item) =>
+    normalizeSearchText(item.city).includes(keyword),
+  );
   $("#empty-state").hidden = data.length > 0;
   $("#forecast-list").innerHTML = data.map((item) => `
     <article class="forecast-card glass-card">
