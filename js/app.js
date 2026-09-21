@@ -9,26 +9,6 @@ const endpoints = {
 
 const state = { rainfall: [], uv: [], forecast: [] };
 
-const fallbackData = {
-  rainfall: [
-    { station: "太平山", county: "宜蘭縣", value: 82.5 },
-    { station: "東澳嶺", county: "宜蘭縣", value: 61 },
-    { station: "三貂角", county: "新北市", value: 44.5 },
-    { station: "基隆", county: "基隆市", value: 32 },
-    { station: "瑞芳", county: "新北市", value: 26.5 },
-  ],
-  uv: [
-    { station: "臺北", county: "臺北市", value: 4.2 },
-    { station: "臺中", county: "臺中市", value: 6.8 },
-    { station: "高雄", county: "高雄市", value: 8.1 },
-  ],
-  forecast: [
-    ["臺北市", "多雲時晴", 23, 30, 20], ["新北市", "多雲短暫雨", 22, 29, 30], ["桃園市", "晴時多雲", 22, 29, 20],
-    ["臺中市", "晴時多雲", 24, 32, 10], ["臺南市", "多雲", 25, 32, 20], ["高雄市", "午後短暫雨", 25, 33, 40],
-    ["基隆市", "短暫雨", 22, 27, 50], ["新竹市", "多雲時晴", 22, 29, 20], ["嘉義市", "晴時多雲", 24, 32, 10],
-  ].map(([city, weather, min, max, rain]) => ({ city, weather, min, max, rain, comfort: "舒適至悶熱" })),
-};
-
 const $ = (selector) => document.querySelector(selector);
 const safeNumber = (value) => {
   const number = Number(value);
@@ -54,6 +34,15 @@ function showToast(message) {
   toast.classList.add("show");
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 3600);
+}
+
+function unavailableMarkup(label) {
+  return `<div class="data-unavailable">
+    <span aria-hidden="true">!</span>
+    <strong>${label}暫時無法取得</strong>
+    <p>請稍後再試，或按下重新整理重新連線。</p>
+    <button class="retry-data" type="button">重新整理資料</button>
+  </div>`;
 }
 
 async function fetchDataset(dataset) {
@@ -129,7 +118,16 @@ function rainLevel(value) {
 }
 
 function renderRainfall(items) {
-  const data = items.length ? items : fallbackData.rainfall;
+  if (!items.length) {
+    $("#max-rainfall").textContent = "—";
+    $("#wettest-station").textContent = "—";
+    $("#wettest-county").textContent = "—";
+    $("#rainfall-summary").textContent = "目前沒有可顯示的即時觀測資料。";
+    $("#rain-gauge-fill").style.width = "0";
+    $("#rainfall-list").innerHTML = unavailableMarkup("雨量資料");
+    return;
+  }
+  const data = items;
   const max = data[0]?.value || 0;
   $("#max-rainfall").textContent = max.toFixed(1).replace(".0", "");
   $("#wettest-station").textContent = data[0]?.station || "—";
@@ -153,7 +151,11 @@ function uvInfo(value) {
 }
 
 function renderUv(items) {
-  const data = items.length ? items : fallbackData.uv;
+  if (!items.length) {
+    $("#uv-list").innerHTML = `<div class="glass-card unavailable-card">${unavailableMarkup("紫外線資料")}</div>`;
+    return;
+  }
+  const data = items;
   $("#uv-list").innerHTML = data.map((item) => {
     const info = uvInfo(item.value);
     return `<article class="uv-card glass-card" style="--level-color:${info.color}">
@@ -178,7 +180,12 @@ function normalizeSearchText(text = "") {
 
 function renderForecast(items = state.forecast) {
   const keyword = normalizeSearchText($("#city-search").value);
-  const data = (items.length ? items : fallbackData.forecast).filter((item) =>
+  if (!items.length) {
+    $("#empty-state").hidden = true;
+    $("#forecast-list").innerHTML = `<div class="glass-card unavailable-card">${unavailableMarkup("縣市預報")}</div>`;
+    return;
+  }
+  const data = items.filter((item) =>
     normalizeSearchText(item.city).includes(keyword),
   );
   $("#empty-state").hidden = data.length > 0;
@@ -211,14 +218,19 @@ async function loadWeatherData({ announce = false } = {}) {
 
   const failures = results.filter((result) => result.status === "rejected").length;
   const time = new Intl.DateTimeFormat("zh-TW", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date());
-  $("#update-time").textContent = failures === 3 ? "示範資料" : `${time} 更新`;
+  $("#update-time").textContent = failures
+    ? `${failures} 組資料無法取得`
+    : `${time} 更新`;
   refreshButton.classList.remove("is-loading");
   refreshButton.disabled = false;
-  if (failures && announce) showToast(`有 ${failures} 組即時資料暫時無法取得，已顯示示範內容。`);
+  if (failures) showToast(`有 ${failures} 組即時資料暫時無法取得，請稍後重新整理。`);
   else if (announce) showToast("氣象資料已更新。 ");
 }
 
 formatDate();
 $("#city-search").addEventListener("input", () => renderForecast());
 $("#refresh-button").addEventListener("click", () => loadWeatherData({ announce: true }));
+document.addEventListener("click", (event) => {
+  if (event.target.closest(".retry-data")) loadWeatherData({ announce: true });
+});
 loadWeatherData();
