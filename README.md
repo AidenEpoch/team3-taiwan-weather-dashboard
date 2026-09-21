@@ -1,0 +1,21 @@
+# 島嶼天氣
+
+整合中央氣象署開放資料的響應式氣象 Dashboard，包含：
+
+- 自動雨量站近 24 小時雨量
+- 紫外線觀測與分級
+- 臺灣 22 縣市今明 36 小時預報
+
+## 啟動方式
+
+1. 複製 `js/config.example.js` 為 `js/config.js`。
+2. 在 `js/config.js` 填入中央氣象署 API 授權碼。
+3. 使用本機 HTTP Server 開啟，請勿直接雙擊 `index.html`：
+
+```bash
+python3 -m http.server 8000
+```
+
+接著開啟 `http://localhost:8000`。
+
+> 純前端 API 授權碼會被瀏覽器讀取，正式上線時建議改由後端代理 API 請求。

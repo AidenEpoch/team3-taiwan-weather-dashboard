@@ -1,0 +1,217 @@
+const API_BASE = "https://opendata.cwa.gov.tw/api/v1/rest/datastore";
+const API_KEY = window.APP_CONFIG?.CWA_API_KEY || "";
+
+const endpoints = {
+  rainfall: "O-A0002-001",
+  uv: "O-A0005-001",
+  forecast: "F-C0032-001",
+};
+
+const state = { rainfall: [], uv: [], forecast: [] };
+
+const fallbackData = {
+  rainfall: [
+    { station: "太平山", county: "宜蘭縣", value: 82.5 },
+    { station: "東澳嶺", county: "宜蘭縣", value: 61 },
+    { station: "三貂角", county: "新北市", value: 44.5 },
+    { station: "基隆", county: "基隆市", value: 32 },
+    { station: "瑞芳", county: "新北市", value: 26.5 },
+  ],
+  uv: [
+    { station: "臺北", county: "臺北市", value: 4.2 },
+    { station: "臺中", county: "臺中市", value: 6.8 },
+    { station: "高雄", county: "高雄市", value: 8.1 },
+  ],
+  forecast: [
+    ["臺北市", "多雲時晴", 23, 30, 20], ["新北市", "多雲短暫雨", 22, 29, 30], ["桃園市", "晴時多雲", 22, 29, 20],
+    ["臺中市", "晴時多雲", 24, 32, 10], ["臺南市", "多雲", 25, 32, 20], ["高雄市", "午後短暫雨", 25, 33, 40],
+    ["基隆市", "短暫雨", 22, 27, 50], ["新竹市", "多雲時晴", 22, 29, 20], ["嘉義市", "晴時多雲", 24, 32, 10],
+  ].map(([city, weather, min, max, rain]) => ({ city, weather, min, max, rain, comfort: "舒適至悶熱" })),
+};
+
+const $ = (selector) => document.querySelector(selector);
+const safeNumber = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 && number < 999 ? number : 0;
+};
+const get = (object, paths, fallback = undefined) => {
+  for (const path of paths) {
+    const value = path.split(".").reduce((target, key) => target?.[key], object);
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  return fallback;
+};
+
+function formatDate() {
+  const formatter = new Intl.DateTimeFormat("zh-TW", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  $("#hero-date").textContent = formatter.format(new Date());
+  $("#current-year").textContent = new Date().getFullYear();
+}
+
+function showToast(message) {
+  const toast = $("#toast");
+  toast.textContent = message;
+  toast.classList.add("show");
+  window.clearTimeout(showToast.timer);
+  showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 3600);
+}
+
+async function fetchDataset(dataset) {
+  if (!API_KEY) throw new Error("尚未設定 API 金鑰");
+  const url = `${API_BASE}/${dataset}?Authorization=${encodeURIComponent(API_KEY)}&format=JSON`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${dataset} 回應 ${response.status}`);
+  const data = await response.json();
+  if (data.success === "false" || data.success === false) throw new Error(`${dataset} 讀取失敗`);
+  return data.records || {};
+}
+
+function normalizeRainfall(records) {
+  const stations = records.Station || records.station || records.location || [];
+  return stations.map((item) => ({
+    station: get(item, ["StationName", "stationName", "locationName"], "未命名測站"),
+    county: get(item, ["GeoInfo.CountyName", "GeoInfo.countyName", "countyName"], "臺灣"),
+    value: safeNumber(get(item, ["RainfallElement.Past24hr.Precipitation", "RainfallElement.Past12hr.Precipitation", "rainfallElement.Past24hr.Precipitation", "weatherElement.0.elementValue"], 0)),
+  })).filter((item) => item.value >= 0).sort((a, b) => b.value - a.value).slice(0, 6);
+}
+
+function collectUvLocations(records) {
+  const direct = records.WeatherElement?.Location || records.WeatherElement?.location || records.weatherElement?.location;
+  if (Array.isArray(direct)) return direct;
+  return records.Station || records.station || records.location || [];
+}
+
+function findUvValue(item) {
+  const direct = get(item, ["UVIndex", "UV", "uvIndex", "WeatherElement.UVIndex", "weatherElement.UVIndex"]);
+  if (direct !== undefined) return safeNumber(direct);
+  const values = [];
+  const walk = (node, key = "") => {
+    if (node && typeof node === "object") Object.entries(node).forEach(([childKey, child]) => walk(child, childKey));
+    else if (/uv|uvi|indexvalue|elementvalue/i.test(key)) values.push(safeNumber(node));
+  };
+  walk(item);
+  return Math.max(0, ...values);
+}
+
+function normalizeUv(records) {
+  return collectUvLocations(records).map((item) => ({
+    station: get(item, ["StationName", "stationName", "LocationName", "locationName"], "觀測站"),
+    county: get(item, ["GeoInfo.CountyName", "CountyName", "countyName"], "臺灣"),
+    value: findUvValue(item),
+  })).filter((item) => item.value > 0).sort((a, b) => b.value - a.value).slice(0, 6);
+}
+
+function readForecastElement(location, elementName) {
+  const elements = location.weatherElement || location.WeatherElement || [];
+  const element = elements.find((entry) => (entry.elementName || entry.ElementName) === elementName);
+  const first = element?.time?.[0] || element?.Time?.[0] || {};
+  return get(first, ["parameter.parameterName", "parameter.ParameterName", "elementValue.0.value", "ElementValue.0.Weather", "ElementValue.0.Temperature", "ElementValue.0.ProbabilityOfPrecipitation"], "—");
+}
+
+function normalizeForecast(records) {
+  const locations = records.location || records.Location || records.Locations?.[0]?.Location || [];
+  return locations.map((location) => ({
+    city: location.locationName || location.LocationName || "未知縣市",
+    weather: readForecastElement(location, "Wx"),
+    min: safeNumber(readForecastElement(location, "MinT")),
+    max: safeNumber(readForecastElement(location, "MaxT")),
+    rain: safeNumber(readForecastElement(location, "PoP")),
+    comfort: readForecastElement(location, "CI"),
+  }));
+}
+
+function rainLevel(value) {
+  if (value >= 80) return "雨勢明顯，外出請攜帶雨具並留意低窪地區。";
+  if (value >= 40) return "部分地區有較明顯降雨，行程安排請留意。";
+  if (value > 0) return "局部地區有短暫降雨，建議隨身攜帶雨具。";
+  return "目前觀測雨量偏低，仍請留意最新天氣變化。";
+}
+
+function renderRainfall(items) {
+  const data = items.length ? items : fallbackData.rainfall;
+  const max = data[0]?.value || 0;
+  $("#max-rainfall").textContent = max.toFixed(1).replace(".0", "");
+  $("#wettest-station").textContent = data[0]?.station || "—";
+  $("#wettest-county").textContent = data[0]?.county || "—";
+  $("#rainfall-summary").textContent = rainLevel(max);
+  $("#rain-gauge-fill").style.width = `${Math.min(100, max)}%`;
+  $("#rainfall-list").innerHTML = data.map((item) => `
+    <div class="station-row">
+      <div class="station-name"><strong>${item.station}</strong><span>${item.county}</span></div>
+      <div class="station-bar"><i style="width:${max ? Math.max(4, item.value / max * 100) : 0}%"></i></div>
+      <div class="station-value">${item.value.toFixed(1).replace(".0", "")}<span>mm</span></div>
+    </div>`).join("");
+}
+
+function uvInfo(value) {
+  if (value <= 2) return { label: "低量級", color: "#55e6a5", bars: 1 };
+  if (value <= 5) return { label: "中量級", color: "#ffd66b", bars: 2 };
+  if (value <= 7) return { label: "高量級", color: "#ff9d66", bars: 3 };
+  if (value <= 10) return { label: "過量級", color: "#ff6577", bars: 4 };
+  return { label: "危險級", color: "#b77cff", bars: 5 };
+}
+
+function renderUv(items) {
+  const data = items.length ? items : fallbackData.uv;
+  $("#uv-list").innerHTML = data.map((item) => {
+    const info = uvInfo(item.value);
+    return `<article class="uv-card glass-card" style="--level-color:${info.color}">
+      <div class="uv-location"><div><strong>${item.station}</strong><span>${item.county}</span></div><b class="uv-badge">${info.label}</b></div>
+      <div class="uv-reading"><strong>${item.value.toFixed(1)}</strong><span>UV INDEX</span></div>
+      <div class="uv-meter">${[1,2,3,4,5].map((index) => `<i class="${index <= info.bars ? "active" : ""}"></i>`).join("")}</div>
+    </article>`;
+  }).join("");
+}
+
+function weatherIcon(weather = "") {
+  if (/雷/.test(weather)) return "⛈️";
+  if (/雨/.test(weather)) return "🌧️";
+  if (/陰/.test(weather)) return "☁️";
+  if (/多雲/.test(weather)) return "🌤️";
+  return "☀️";
+}
+
+function renderForecast(items = state.forecast) {
+  const keyword = $("#city-search").value.trim();
+  const data = (items.length ? items : fallbackData.forecast).filter((item) => item.city.includes(keyword));
+  $("#empty-state").hidden = data.length > 0;
+  $("#forecast-list").innerHTML = data.map((item) => `
+    <article class="forecast-card glass-card">
+      <div class="forecast-top"><div class="forecast-city"><strong>${item.city}</strong><span>未來 12 小時</span></div><span class="weather-icon">${weatherIcon(item.weather)}</span></div>
+      <div class="forecast-temp"><strong>${item.max}°</strong><span>${item.weather}</span></div>
+      <div class="forecast-meta">
+        <div><span>最低溫</span><strong>${item.min}°C</strong></div>
+        <div><span>降雨機率</span><strong>${item.rain}%</strong></div>
+        <div><span>舒適度</span><strong>${String(item.comfort).slice(0, 6)}</strong></div>
+      </div>
+    </article>`).join("");
+}
+
+async function loadWeatherData({ announce = false } = {}) {
+  const refreshButton = $("#refresh-button");
+  refreshButton.classList.add("is-loading");
+  refreshButton.disabled = true;
+  const results = await Promise.allSettled([
+    fetchDataset(endpoints.rainfall), fetchDataset(endpoints.uv), fetchDataset(endpoints.forecast),
+  ]);
+
+  state.rainfall = results[0].status === "fulfilled" ? normalizeRainfall(results[0].value) : [];
+  state.uv = results[1].status === "fulfilled" ? normalizeUv(results[1].value) : [];
+  state.forecast = results[2].status === "fulfilled" ? normalizeForecast(results[2].value) : [];
+  renderRainfall(state.rainfall);
+  renderUv(state.uv);
+  renderForecast(state.forecast);
+
+  const failures = results.filter((result) => result.status === "rejected").length;
+  const time = new Intl.DateTimeFormat("zh-TW", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date());
+  $("#update-time").textContent = failures === 3 ? "示範資料" : `${time} 更新`;
+  refreshButton.classList.remove("is-loading");
+  refreshButton.disabled = false;
+  if (failures && announce) showToast(`有 ${failures} 組即時資料暫時無法取得，已顯示示範內容。`);
+  else if (announce) showToast("氣象資料已更新。 ");
+}
+
+formatDate();
+$("#city-search").addEventListener("input", () => renderForecast());
+$("#refresh-button").addEventListener("click", () => loadWeatherData({ announce: true }));
+loadWeatherData();
