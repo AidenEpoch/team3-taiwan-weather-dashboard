@@ -187,6 +187,6 @@ button { color: inherit; }
   .uv-grid, .forecast-grid { grid-template-columns: 1fr; }
   .station-row { grid-template-columns: 1fr 70px; }.station-bar { display: none; }
   .footer-inner { align-items: start; flex-direction: column; }
-  .footer-links { flex-direction: column; gap: 10px; }
+  .footer-links { width: 100%; align-items: flex-start; flex-direction: column; gap: 10px; }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; animation-duration: .01ms !important; } }
