@@ -19,7 +19,7 @@ python3 -m http.server 8000
 
 接著開啟 `http://localhost:8000`。
 
-> 純前端 API 授權碼會被瀏覽器讀取，正式上線時建議改由後端代理 API 請求。
+> 正式網站已使用 Vercel Serverless Function 作為後端 API 代理。API 金鑰安全保存在 Vercel 環境變數中，不會出現在前端程式碼或瀏覽器；更新 GitHub `main` 分支後，Vercel 會自動重新部署。
 
 ## Vercel 部署
 
