@@ -1,6 +1,7 @@
 const ALLOWED_DATASETS = new Set([
   "O-A0002-001",
   "O-A0005-001",
+  "O-A0001-001",
   "F-C0032-001",
 ]);
 

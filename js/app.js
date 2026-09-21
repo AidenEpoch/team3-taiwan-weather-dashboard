@@ -4,6 +4,7 @@ const LOCAL_API_KEY = window.APP_CONFIG?.CWA_API_KEY || "";
 const endpoints = {
   rainfall: "O-A0002-001",
   uv: "O-A0005-001",
+  stations: "O-A0001-001",
   forecast: "F-C0032-001",
 };
 
@@ -83,11 +84,26 @@ function findUvValue(item) {
   return Math.max(0, ...values);
 }
 
-function normalizeUv(records) {
+function buildStationLookup(records) {
+  const stations = records.Station || records.station || records.location || [];
+  return new Map(stations.map((item) => {
+    const id = String(get(item, ["StationId", "StationID", "stationId", "stationID"], ""));
+    return [id, {
+      station: get(item, ["StationName", "stationName", "LocationName", "locationName"], `測站 ${id}`),
+      county: get(item, ["GeoInfo.CountyName", "GeoInfo.countyName", "CountyName", "countyName"], "地區未提供"),
+    }];
+  }).filter(([id]) => id));
+}
+
+function normalizeUv(records, stationRecords) {
+  const stationLookup = buildStationLookup(stationRecords);
   return collectUvLocations(records).map((item) => ({
-    station: get(item, ["StationName", "stationName", "LocationName", "locationName"], "觀測站"),
-    county: get(item, ["GeoInfo.CountyName", "CountyName", "countyName"], "臺灣"),
+    stationId: String(get(item, ["StationID", "StationId", "stationID", "stationId"], "")),
     value: findUvValue(item),
+  })).map((item) => ({
+    ...item,
+    station: stationLookup.get(item.stationId)?.station || `測站 ${item.stationId || "未提供"}`,
+    county: stationLookup.get(item.stationId)?.county || "地區未提供",
   })).filter((item) => item.value > 0).sort((a, b) => b.value - a.value).slice(0, 6);
 }
 
@@ -206,17 +222,26 @@ async function loadWeatherData({ announce = false } = {}) {
   refreshButton.classList.add("is-loading");
   refreshButton.disabled = true;
   const results = await Promise.allSettled([
-    fetchDataset(endpoints.rainfall), fetchDataset(endpoints.uv), fetchDataset(endpoints.forecast),
+    fetchDataset(endpoints.rainfall),
+    fetchDataset(endpoints.uv),
+    fetchDataset(endpoints.stations),
+    fetchDataset(endpoints.forecast),
   ]);
 
   state.rainfall = results[0].status === "fulfilled" ? normalizeRainfall(results[0].value) : [];
-  state.uv = results[1].status === "fulfilled" ? normalizeUv(results[1].value) : [];
-  state.forecast = results[2].status === "fulfilled" ? normalizeForecast(results[2].value) : [];
+  state.uv = results[1].status === "fulfilled" && results[2].status === "fulfilled"
+    ? normalizeUv(results[1].value, results[2].value)
+    : [];
+  state.forecast = results[3].status === "fulfilled" ? normalizeForecast(results[3].value) : [];
   renderRainfall(state.rainfall);
   renderUv(state.uv);
   renderForecast(state.forecast);
 
-  const failures = results.filter((result) => result.status === "rejected").length;
+  const failures = [
+    results[0].status === "rejected",
+    results[1].status === "rejected" || results[2].status === "rejected",
+    results[3].status === "rejected",
+  ].filter(Boolean).length;
   const time = new Intl.DateTimeFormat("zh-TW", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date());
   $("#update-time").textContent = failures
     ? `${failures} 組資料無法取得`
