@@ -40,7 +40,7 @@ function unavailableMarkup(label) {
   return `<div class="data-unavailable">
     <span aria-hidden="true">!</span>
     <strong>${label}暫時無法取得</strong>
-    <p>請稍後再試，或按下重新整理重新連線</p>
+    <p>請稍後再試，或按下重新整理重新連線。</p>
     <button class="retry-data" type="button">重新整理資料</button>
   </div>`;
 }
@@ -111,10 +111,10 @@ function normalizeForecast(records) {
 }
 
 function rainLevel(value) {
-  if (value >= 80) return "雨勢明顯，外出請攜帶雨具並留意低窪地區";
-  if (value >= 40) return "部分地區有較明顯降雨，行程安排請留意";
-  if (value > 0) return "局部地區有短暫降雨，建議隨身攜帶雨具";
-  return "目前觀測雨量偏低，仍請留意最新天氣變化";
+  if (value >= 80) return "雨勢明顯，外出請攜帶雨具並留意低窪地區。";
+  if (value >= 40) return "部分地區有較明顯降雨，行程安排請留意。";
+  if (value > 0) return "局部地區有短暫降雨，建議隨身攜帶雨具。";
+  return "目前觀測雨量偏低，仍請留意最新天氣變化。";
 }
 
 function renderRainfall(items) {
@@ -122,7 +122,7 @@ function renderRainfall(items) {
     $("#max-rainfall").textContent = "—";
     $("#wettest-station").textContent = "—";
     $("#wettest-county").textContent = "—";
-    $("#rainfall-summary").textContent = "目前沒有可顯示的即時觀測資料";
+    $("#rainfall-summary").textContent = "目前沒有可顯示的即時觀測資料。";
     $("#rain-gauge-fill").style.width = "0";
     $("#rainfall-list").innerHTML = unavailableMarkup("雨量資料");
     return;
@@ -223,8 +223,8 @@ async function loadWeatherData({ announce = false } = {}) {
     : `${time} 更新`;
   refreshButton.classList.remove("is-loading");
   refreshButton.disabled = false;
-  if (failures) showToast(`有 ${failures} 組即時資料暫時無法取得，請稍後重新整理`);
-  else if (announce) showToast("氣象資料已更新");
+  if (failures) showToast(`有 ${failures} 組即時資料暫時無法取得，請稍後重新整理。`);
+  else if (announce) showToast("氣象資料已更新。");
 }
 
 formatDate();
