@@ -19,3 +19,13 @@ python3 -m http.server 8000
 接著開啟 `http://localhost:8000`。
 
 > 純前端 API 授權碼會被瀏覽器讀取，正式上線時建議改由後端代理 API 請求。
+
+## Vercel 部署
+
+專案包含 `api/weather.js` Serverless Function。請在 Vercel 專案的 Environment Variables 新增：
+
+```text
+CWA_API_KEY=你的中央氣象署 API 授權碼
+```
+
+部署後，前端會透過 `/api/weather` 取得即時資料，API 授權碼只存在 Vercel 後端環境。

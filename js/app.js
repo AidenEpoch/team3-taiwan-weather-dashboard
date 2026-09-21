@@ -1,5 +1,5 @@
-const API_BASE = "https://opendata.cwa.gov.tw/api/v1/rest/datastore";
-const API_KEY = window.APP_CONFIG?.CWA_API_KEY || "";
+const CWA_API_BASE = "https://opendata.cwa.gov.tw/api/v1/rest/datastore";
+const LOCAL_API_KEY = window.APP_CONFIG?.CWA_API_KEY || "";
 
 const endpoints = {
   rainfall: "O-A0002-001",
@@ -57,8 +57,9 @@ function showToast(message) {
 }
 
 async function fetchDataset(dataset) {
-  if (!API_KEY) throw new Error("尚未設定 API 金鑰");
-  const url = `${API_BASE}/${dataset}?Authorization=${encodeURIComponent(API_KEY)}&format=JSON`;
+  const url = LOCAL_API_KEY
+    ? `${CWA_API_BASE}/${dataset}?Authorization=${encodeURIComponent(LOCAL_API_KEY)}&format=JSON`
+    : `/api/weather?dataset=${encodeURIComponent(dataset)}`;
   const response = await fetch(url);
   if (!response.ok) throw new Error(`${dataset} 回應 ${response.status}`);
   const data = await response.json();
