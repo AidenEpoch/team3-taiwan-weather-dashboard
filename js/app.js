@@ -208,10 +208,6 @@ function renderUv(items = state.uv) {
 }
 
 
-formatDate();
-$("#city-search").addEventListener("input", () => renderForecast());
-$("#uv-search")?.addEventListener("input", () => renderUv()); 
-
 function weatherIcon(weather = "") {
   if (/雷/.test(weather)) return "⛈️";
   if (/雨/.test(weather)) return "🌧️";
@@ -284,6 +280,7 @@ async function loadWeatherData({ announce = false } = {}) {
 
 formatDate();
 $("#city-search").addEventListener("input", () => renderForecast());
+$("#uv-search")?.addEventListener("input", () => renderUv()); 
 $("#refresh-button").addEventListener("click", () => loadWeatherData({ announce: true }));
 document.addEventListener("click", (event) => {
   if (event.target.closest(".retry-data")) loadWeatherData({ announce: true });
